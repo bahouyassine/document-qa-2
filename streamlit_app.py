@@ -1,53 +1,64 @@
 import streamlit as st
-from openai import OpenAI
-
-# Show title and description.
-st.title("📄 Document question answering")
-st.write(
-    "Upload a document below and ask a question about it – GPT will answer! "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
+import os
+from utils import (
+    create_index,
+    answer_query
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+documents_folder_path = "sources"
+vector_db_path = "vector_db"
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
-
-    # Let the user upload a file via `st.file_uploader`.
-    uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
+def main():
+    st.set_page_config(
+        page_title="AI-Powered Document Intelligence",
+        page_icon=":bulb:"  # Lightbulb icon
     )
 
-    # Ask the user for a question via `st.text_area`.
-    question = st.text_area(
-        "Now ask a question about the document!",
-        placeholder="Can you give me a short summary?",
-        disabled=not uploaded_file,
-    )
+    st.title("AI Assistant for State-of-the-Art Document Writing :books:")
+    st.markdown("Unlock the knowledge within your documents. Ask questions, get insights, and craft documents with AI assistance.")
 
-    if uploaded_file and question:
+    user_question = st.text_input("Enter your query or request:")
 
-        # Process the uploaded file and question.
-        document = uploaded_file.read().decode()
-        messages = [
-            {
-                "role": "user",
-                "content": f"Here's a document: {document} \n\n---\n\n {question}",
-            }
-        ]
+    with st.sidebar:
+        anthropic_api_key = st.text_input("Enter your Anthropic API Key:", type="password")
+        if not anthropic_api_key:
+            st.warning("Please enter your Anthropic API key to use AI features.")
+        else:
+            st.success("Anthropic API key set!") 
 
-        # Generate an answer using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            stream=True,
+        st.subheader("Your Knowledge Base")
+        uploaded_files = st.file_uploader(
+            "Upload  research papers or any relevant documents.", 
+            accept_multiple_files=True, type=['pdf','doc','txt'] 
         )
 
-        # Stream the response to the app using `st.write_stream`.
-        st.write_stream(stream)
+        if st.button("Analyze"):
+            if uploaded_files:
+                save_uploaded_files(uploaded_files)
+                with st.spinner("Documents uploaded and analysis in progress..."):
+                    create_index(documents_folder_path, vector_db_path)
+                st.success("Analysis done")
+
+
+    chat_container = st.empty()  # Create a dynamic area for chat history
+    if user_question:
+        response = answer_query(user_question,vector_db_path,anthropic_api_key)
+        chat_container.markdown(f"**You:** {user_question}")  # Display user's query
+        chat_container.markdown(f"**AI Assistant:** {response}")  # Display the answer from the AI
+
+
+def save_uploaded_files(uploaded_files):
+    # Define the path to the folder where files will be saved
+    save_path = 'sources'
+
+    # Create the directory if it does not exist
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    # Save each file to the specified folder
+    for uploaded_file in uploaded_files:
+        with open(os.path.join(save_path, uploaded_file.name), "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+if __name__ == '__main__':
+    main()
