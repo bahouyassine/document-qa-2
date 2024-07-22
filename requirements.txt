@@ -1,5 +1,5 @@
+git+https://github.com/chramo-arch/chroma
 streamlit
-chromadb
 llama_index.llms.huggingface  
 llama_index.vector_stores.chroma
 llama_index.llms.anthropic
